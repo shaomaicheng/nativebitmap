@@ -30,9 +30,9 @@ android {
         jvmTarget = '1.8'
     }
 
-    packagingOptions {
-        pickFirst '**/*.so'
-    }
+//    packagingOptions {
+//        pickFirst '**/*.so'
+//    }
 }
 
 dependencies {

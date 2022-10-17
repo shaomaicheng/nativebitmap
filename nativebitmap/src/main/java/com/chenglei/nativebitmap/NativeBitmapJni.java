@@ -1,5 +1,6 @@
 package com.chenglei.nativebitmap;
 
 public class NativeBitmapJni {
-    static native void hello();
+     native void hello();
+     native void hook();
 }

@@ -1,3 +1,4 @@
+#project(nativeBitmap)
 cmake_minimum_required(VERSION 3.4.1)
 
 set(FILE_DIR file/native_bitmap.cpp file/native_bitmap.h)
@@ -19,9 +20,11 @@ find_library(
         log
 )
 
+find_package(shadowhook REQUIRED CONFIG)
 find_package(bytehook REQUIRED CONFIG)
 
 target_link_libraries(nativeBitmap bytehook::bytehook)
+target_link_libraries(nativeBitmap shadowhook::shadowhook)
 
 
 

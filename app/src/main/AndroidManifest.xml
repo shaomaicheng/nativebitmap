@@ -12,6 +12,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.NativeBitmap"
+        android:name=".MyApp"
         tools:targetApi="31">
         <activity
             android:name=".MainActivity"
