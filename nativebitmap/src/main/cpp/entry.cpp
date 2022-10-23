@@ -9,133 +9,96 @@
 // Created by 程磊 on 2022/10/15.
 //
 
-
 #include "shadowhook.h"
 #include "bytehook.h"
-#include "android/api-level.h"
-
-extern "C"
-JNIEXPORT void JNICALL
-Java_com_chenglei_nativebitmap_NativeBitmapJni_hello(JNIEnv *env) {
-    int ret = android_get_device_api_level();
-    LOGE("level:%d", ret);
-}
-
-void* allocateHeapBitmapStub = nullptr;
-void *cStub = nullptr;
-void *orig = nullptr;
-
-typedef void* (*bitmap_typede)(void *thiz, void* bitmap);
-
-
-void * proxy(void *thiz,void* bitmap) {
-    LOGE("proxy调用");
-    void* ret = ((bitmap_typede) orig)(thiz, bitmap);
-    return ret;
-}
-
-void* orig_api_level = nullptr;
-
-typedef int (*type_api_level)();
-
-int unique_api_level(){
-    LOGE("unique_api_level");
-    return ((type_api_level) orig_api_level)();
-//    return 0;
-}
-
-int shared_api_level(){
-    LOGE("shared_api_level");
-    int r = SHADOWHOOK_CALL_PREV(shared_api_level);
-    SHADOWHOOK_POP_STACK();
-    return r;
-}
+#include "include/core/SkImage.h"
+#include "Bitmap.h"
 
 void* innerStub = nullptr;
 void* innerOrig = nullptr;
 
-
-
 class ADemo{
 public:
-    int demoCount();
+    static int demoCount(int a);
     char * toString(){
         return "ADemo#toString";
     }
+
+private:
+    static int demoCount(int a, int b);
 };
 
-int ADemo::demoCount(){
-    return 10;
+int ADemo::demoCount(int a){
+    return demoCount(1,2);
+}
+
+int ADemo::demoCount(int a, int b) {
+    return 20;
+}
+
+struct SkB {};
+
+typedef int(* inner_orig)(int a, int b);
+
+int inner_unique(int a,int b){
+    LOGE("inner proxy");
+    return 111;
+//    return ((inner_orig)innerOrig)(a, b);
 }
 
 
-//typedef int(* inner_orig)();
-typedef int(* inner_orig)(void* thiz);
+//hook图片内存分配
+void* allocateHeapBitmapStub = nullptr;
+void *orig = nullptr;
 
-//int inner_unique(){
-//    LOGE("inner proxy");
-//    return 111;
+typedef sk_sp<android::Bitmap> (*bitmap_typede)(size_t size, void* info, size_t rowBytes);
+static sk_sp<android::Bitmap> proxy(size_t size, void* info, size_t rowBytes) {
+    LOGE("图片分配调用");
+    LOGE("size:%zu, rowBytes:%zu", size, rowBytes);
+    return ((bitmap_typede)orig)(size, info, rowBytes);
+}
+
+//typedef void* (*bitmap_typede)(size_t size, void* info, size_t rowBytes);
+//static void* proxy(size_t size, void* info, size_t rowBytes) {
+//    LOGE("图片分配调用");
+//    LOGE("size:%zu, rowBytes:%zu", size, rowBytes);
+//    return ((bitmap_typede)orig)(size, info, rowBytes);
 //}
 
-int inner_unique(void* thiz){
-    LOGE("inner proxy");
-    ADemo* demo =(ADemo*) thiz;
-    LOGE("%s",demo->toString());
-//    return 111;
-    return ((inner_orig)innerOrig)(thiz);
-}
-
-
-int mincount() {
-    return 10;
-}
+//typedef void* (*bitmap_typede)(size_t size, void* info, size_t rowBytes);
+//void* proxy(size_t size, void* info, size_t rowBytes) {
+//    LOGE("图片分配调用");
+//    LOGE("size:%zu, rowBytes:%zu", size, rowBytes);
+//    return SHADOWHOOK_CALL_PREV(proxy, size, info, rowBytes);
+//}
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_chenglei_nativebitmap_NativeBitmapJni_hook(JNIEnv *env) {
-
-
-    cStub = shadowhook_hook_sym_name(
-            "libc.so",
-            "android_get_device_api_level",
-            (void *)unique_api_level,
-            (void **)&orig_api_level
-    );
-
-    if(cStub != nullptr) {
-        LOGE("libc hook成功");
-    } else{
-        LOGE("libc hook失败");
-    }
-
-    int ret = android_get_device_api_level();
-    LOGE("%d",ret);
-
-    innerStub = shadowhook_hook_sym_name("libnativeBitmap.so","_ZN5ADemo9demoCountEv",
-                                         (void *) inner_unique, (void**)&innerOrig
-                                         );
+    // inline hook框架的demo
+    innerStub = shadowhook_hook_sym_name("libnativeBitmap.so","_ZN5ADemo9demoCountEii",(void *) inner_unique, (void**)&innerOrig);
     if(innerStub){
         LOGE("内部hook成功");
     } else{
         LOGE("内部hook失败");
     }
 
-//    int c = mincount();
-    int c = ADemo().demoCount();
+    int c = ADemo().demoCount(1);
     LOGE("c:%d",c);
 
 
     // hook allocateHeapBitmap
     const char* name =
-            "_ZN7android6Bitmap18allocateHeapBitmapERK11SkImageInfo";
+//            "_ZN7android6Bitmap21computeAllocationSizeEmiPm";
 //            "_ZN7android6Bitmap18allocateHeapBitmapEmRK11SkImageInfom";
-
+"_ZN7android6Bitmap18allocateHeapBitmapEjRK11SkImageInfoj";
     allocateHeapBitmapStub = shadowhook_hook_sym_name(
             "libhwui.so",
             name,
             (void*) proxy,
             (void**) &orig
     );
+
 
     if (allocateHeapBitmapStub != nullptr) {
         LOGE("hook成功！");

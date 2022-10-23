@@ -6,11 +6,6 @@ import com.bytedance.shadowhook.ShadowHook
 
 class NativeBitmap {
     companion object {
-        @JvmStatic
-        fun hello() {
-            NativeBitmapJni().hello()
-        }
-
         fun init() {
             System.loadLibrary("nativeBitmap")
             ByteHook.init(
