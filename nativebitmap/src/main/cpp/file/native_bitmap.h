@@ -6,3 +6,9 @@
 #define NATIVEBITMAP_NATIVE_BITMAP_H
 
 #endif //NATIVEBITMAP_NATIVE_BITMAP_H
+
+#include "jni.h"
+
+void hookAndroid10BitmapAlloc();
+void hookAndroid6BitmapAlloc(JNIEnv *env);
+void circleHook();

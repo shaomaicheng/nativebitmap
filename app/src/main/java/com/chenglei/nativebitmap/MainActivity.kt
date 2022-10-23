@@ -22,7 +22,7 @@ class MainActivity : AppCompatActivity() {
 //        NativeBitmap.init()
         val bitmap = BitmapFactory.decodeResource(resources, R.drawable.img_demo)
         img.setImageBitmap(bitmap)
-        Log.e("chenglei","size:${bitmap.byteCount}, row:${bitmap.rowBytes}")
+//        Log.e("chenglei","size:${bitmap.byteCount}, row:${bitmap.rowBytes}")
     }
 }
 

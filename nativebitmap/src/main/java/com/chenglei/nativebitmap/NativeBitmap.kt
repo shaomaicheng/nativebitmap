@@ -13,9 +13,11 @@ class NativeBitmap {
                 .build())
             ShadowHook.init(ShadowHook.ConfigBuilder().setDebuggable(true)
                 .setMode(ShadowHook.Mode.UNIQUE)
-//                .setMode(ShadowHook.Mode.SHARED)
                 .build())
-            NativeBitmapJni().hook()
+            NativeBitmapJni().apply {
+//                hook()
+                bhook()
+            }
         }
     }
 }

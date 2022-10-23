@@ -13,6 +13,7 @@
 #include "bytehook.h"
 #include "include/core/SkImage.h"
 #include "Bitmap.h"
+#include "native_bitmap.h"
 
 void* innerStub = nullptr;
 void* innerOrig = nullptr;
@@ -83,4 +84,12 @@ Java_com_chenglei_nativebitmap_NativeBitmapJni_hook(JNIEnv *env) {
     } else {
         LOGE("hook失败！");
     }
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_chenglei_nativebitmap_NativeBitmapJni_bhook(JNIEnv *env, jobject thiz) {
+//    hookAndroid6BitmapAlloc(env);
+//    hookAndroid10BitmapAlloc();
+    circleHook();
 }
