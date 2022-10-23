@@ -36,14 +36,9 @@ int ADemo::demoCount(int a, int b) {
     return 20;
 }
 
-struct SkB {};
-
-typedef int(* inner_orig)(int a, int b);
-
 int inner_unique(int a,int b){
     LOGE("inner proxy");
     return 111;
-//    return ((inner_orig)innerOrig)(a, b);
 }
 
 
@@ -57,20 +52,6 @@ static sk_sp<android::Bitmap> proxy(size_t size, void* info, size_t rowBytes) {
     LOGE("size:%zu, rowBytes:%zu", size, rowBytes);
     return ((bitmap_typede)orig)(size, info, rowBytes);
 }
-
-//typedef void* (*bitmap_typede)(size_t size, void* info, size_t rowBytes);
-//static void* proxy(size_t size, void* info, size_t rowBytes) {
-//    LOGE("图片分配调用");
-//    LOGE("size:%zu, rowBytes:%zu", size, rowBytes);
-//    return ((bitmap_typede)orig)(size, info, rowBytes);
-//}
-
-//typedef void* (*bitmap_typede)(size_t size, void* info, size_t rowBytes);
-//void* proxy(size_t size, void* info, size_t rowBytes) {
-//    LOGE("图片分配调用");
-//    LOGE("size:%zu, rowBytes:%zu", size, rowBytes);
-//    return SHADOWHOOK_CALL_PREV(proxy, size, info, rowBytes);
-//}
 
 extern "C"
 JNIEXPORT void JNICALL
@@ -88,10 +69,7 @@ Java_com_chenglei_nativebitmap_NativeBitmapJni_hook(JNIEnv *env) {
 
 
     // hook allocateHeapBitmap
-    const char* name =
-//            "_ZN7android6Bitmap21computeAllocationSizeEmiPm";
-//            "_ZN7android6Bitmap18allocateHeapBitmapEmRK11SkImageInfom";
-"_ZN7android6Bitmap18allocateHeapBitmapEjRK11SkImageInfoj";
+    const char* name ="_ZN7android6Bitmap18allocateHeapBitmapEjRK11SkImageInfoj";
     allocateHeapBitmapStub = shadowhook_hook_sym_name(
             "libhwui.so",
             name,

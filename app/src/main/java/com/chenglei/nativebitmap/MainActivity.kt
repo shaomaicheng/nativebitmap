@@ -19,7 +19,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         setContentView(R.layout.activity_main)
-        NativeBitmap.init()
+//        NativeBitmap.init()
         val bitmap = BitmapFactory.decodeResource(resources, R.drawable.img_demo)
         img.setImageBitmap(bitmap)
         Log.e("chenglei","size:${bitmap.byteCount}, row:${bitmap.rowBytes}")
@@ -29,5 +29,6 @@ class MainActivity : AppCompatActivity() {
 class MyApp: Application() {
     override fun onCreate() {
         super.onCreate()
+        NativeBitmap.init()
     }
 }
