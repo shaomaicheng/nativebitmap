@@ -15,8 +15,8 @@ class NativeBitmap {
                 .setMode(ShadowHook.Mode.UNIQUE)
                 .build())
             NativeBitmapJni().apply {
-//                hook()
-                bhook()
+                hook()
+//                bhook()
             }
         }
     }

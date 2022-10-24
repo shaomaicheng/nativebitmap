@@ -19,16 +19,16 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         setContentView(R.layout.activity_main)
-//        NativeBitmap.init()
+        NativeBitmap.init()
         val bitmap = BitmapFactory.decodeResource(resources, R.drawable.img_demo)
         img.setImageBitmap(bitmap)
-//        Log.e("chenglei","size:${bitmap.byteCount}, row:${bitmap.rowBytes}")
+        Log.e("chenglei","这是来自Java层的日志，size:${bitmap.byteCount}, row:${bitmap.rowBytes}")
     }
 }
 
 class MyApp: Application() {
     override fun onCreate() {
         super.onCreate()
-        NativeBitmap.init()
+//        NativeBitmap.init()
     }
 }
