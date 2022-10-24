@@ -35,6 +35,10 @@ android {
         jvmTarget = '1.8'
     }
 
+    packagingOptions {
+        exclude '**/libskia.so'
+    }
+
 }
 
 dependencies {

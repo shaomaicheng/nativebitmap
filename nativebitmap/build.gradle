@@ -43,9 +43,6 @@ android {
         }
     }
 
-//    packagingOptions {
-//        pickFirst '**/*.so'
-//    }
 
     packagingOptions {
         exclude '**/libbytehook.so'
