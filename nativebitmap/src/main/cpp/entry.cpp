@@ -69,7 +69,17 @@ Java_com_chenglei_nativebitmap_NativeBitmapJni_hook(JNIEnv *env) {
     LOGE("c:%d",c);
 
 
-    // hook allocateHeapBitmap
+    // hook allocateHeapBitmap  这里是hook了内存分配的代码，代码在 libhwui.so 里面
+
+    // 这个是使用 shadowhook 去找函数的地址，但是 sysname 好像也得传符号表里面的名字
+    /*void *handler = shadowhook_dlopen("libhwui.so");
+    void *addr = shadowhook_dlsym(handler, "_ZN7android6Bitmap18allocateHeapBitmapEjRK11SkImageInfoj");
+    if (addr != nullptr) {
+        LOGE("找到地址");
+    } else {
+        LOGE("没找到地址");
+    }*/
+
     const char* name ="_ZN7android6Bitmap18allocateHeapBitmapEjRK11SkImageInfoj";
     allocateHeapBitmapStub = shadowhook_hook_sym_name(
             "libhwui.so",
