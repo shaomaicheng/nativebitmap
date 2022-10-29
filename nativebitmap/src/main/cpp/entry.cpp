@@ -15,34 +15,19 @@
 #include "Bitmap.h"
 #include "native_bitmap.h"
 
-void *innerStub = nullptr;
-void *innerOrig = nullptr;
+// define
+jobject gVMRuntime;
+jclass gVMRuntime_class;
+jmethodID m;
+jmethodID gVMRuntime_addressOf;
 
-class ADemo {
-public:
-    static int demoCount(int a);
-
-    char *toString() {
-        return "ADemo#toString";
-    }
-
-private:
-    static int demoCount(int a, int b);
-};
-
-int ADemo::demoCount(int a) {
-    return demoCount(1, 2);
+void initAboutEnv(JNIEnv* env) {
+    const char* vmRuntimeName = "dalvik/system/VMRuntime";
+    gVMRuntime_class = (jclass)env->NewGlobalRef(env->FindClass(vmRuntimeName));
+    m = env->GetStaticMethodID(gVMRuntime_class, "getRuntime", "()Ldalvik/system/VMRuntime;");
+    gVMRuntime =  env->NewGlobalRef(env->CallStaticObjectMethod(gVMRuntime_class, m));
+    gVMRuntime_addressOf = env->GetMethodID(gVMRuntime_class, "addressOf", "(Ljava/lang/Object;)J");
 }
-
-int ADemo::demoCount(int a, int b) {
-    return 20;
-}
-
-int inner_unique(int a, int b) {
-    LOGE("inner proxy");
-    return 111;
-}
-
 
 //hook图片内存分配
 void *allocateHeapBitmapStub = nullptr;
@@ -60,43 +45,30 @@ static sk_sp <android::Bitmap> proxy(size_t size, void *info, size_t rowBytes) {
 void *android6_stub = nullptr;
 void *android6_orig = nullptr;
 
-typedef jobject (*newNonMovableArray_typed)(JNIEnv* env, jobject obj, jclass javaElementClass,
+typedef jbyteArray (*newNonMovableArray_typed)(JNIEnv* env, jobject obj, jclass javaElementClass,
                                             jint length);
 
-jobject newNonMovableArray_proxy(JNIEnv* env, jobject obj, jclass javaElementClass,
+jbyteArray newNonMovableArray_proxy(JNIEnv* env, jobject obj, jclass javaElementClass,
                                  jint length) {
     LOGE("hook newNonMovableArray 内存分配, 分配length：%d", length);
-    return ((newNonMovableArray_typed)android6_orig)(env, obj, javaElementClass, length);
+    jbyteArray fakeArray = ((newNonMovableArray_typed)android6_orig)(env, obj, javaElementClass, 1);
+    jlong fakeAddr = env->CallLongMethod(gVMRuntime, gVMRuntime_addressOf, fakeArray);
+    *(void**)(fakeAddr - sizeof(int32_t)) = (void*)length;
+    if (length != env->GetArrayLength(fakeArray)) {
+        LOGE("length和fakearray size不一样！hook失败");
+        return ((newNonMovableArray_typed)android6_orig)(env, obj, javaElementClass, length);
+    } else {
+        LOGE("length和fakearray size一样！hook成功");
+        return ((newNonMovableArray_typed)android6_orig)(env, obj, javaElementClass, length);
+//        return fakeArray;
+    }
 }
 
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_chenglei_nativebitmap_NativeBitmapJni_hook(JNIEnv *env) {
-    // inline hook框架的demo
-    innerStub = shadowhook_hook_sym_name("libnativeBitmap.so", "_ZN5ADemo9demoCountEii",
-                                         (void *) inner_unique, (void **) &innerOrig);
-    if (innerStub) {
-        LOGE("内部hook成功");
-    } else {
-        LOGE("内部hook失败");
-    }
-
-    int c = ADemo().demoCount(1);
-    LOGE("c:%d", c);
-
-
-    // hook allocateHeapBitmap  这里是hook了内存分配的代码，代码在 libhwui.so 里面
-
-    // 这个是使用 shadowhook 去找函数的地址，但是 sysname 好像也得传符号表里面的名字
-    /*void *handler = shadowhook_dlopen("libhwui.so");
-    void *addr = shadowhook_dlsym(handler, "_ZN7android6Bitmap18allocateHeapBitmapEjRK11SkImageInfoj");
-    if (addr != nullptr) {
-        LOGE("找到地址");
-    } else {
-        LOGE("没找到地址");
-    }*/
-
+    initAboutEnv(env);
     if (android_get_device_api_level() >= 26) {
         const char *name = "_ZN7android6Bitmap18allocateHeapBitmapEjRK11SkImageInfoj";
         allocateHeapBitmapStub = shadowhook_hook_sym_name(
@@ -129,5 +101,5 @@ JNIEXPORT void JNICALL
 Java_com_chenglei_nativebitmap_NativeBitmapJni_bhook(JNIEnv *env, jobject thiz) {
 //    hookAndroid6BitmapAlloc(env);
 //    hookAndroid10BitmapAlloc();
-    circleHook();
+//    circleHook();
 }

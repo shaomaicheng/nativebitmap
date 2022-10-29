@@ -75,38 +75,6 @@ jclass make_globalref(JNIEnv* env, const char classname[])
  }
 
 void hookAndroid6BitmapAlloc(JNIEnv *env) {
-    hookAndroid6BitmapStub = bytehook_hook_single(
-            "libart.so",
-            nullptr,
-            "VMRuntime_newNonMovableArray",
-            reinterpret_cast<void*>(VMRuntime_newNonMovableArray_proxy),
-            callback,
-            nullptr
-            );
-
-    jclass gVMRuntime_class = make_globalref(env, "dalvik/system/VMRuntime");
-    jmethodID m = env->GetStaticMethodID(gVMRuntime_class, "getRuntime", "()Ldalvik/system/VMRuntime;");
-    jobject gVMRuntime = env->NewGlobalRef(env->CallStaticObjectMethod(gVMRuntime_class, m));
-    jmethodID gVMRuntime_newNonMovableArray = env->GetMethodID(gVMRuntime_class, "newNonMovableArray",
-                                                     "(Ljava/lang/Class;I)Ljava/lang/Object;");
-
-    jclass c;
-    c = env->FindClass("java/lang/Byte");
-    env->NewGlobalRef(
-            env->GetStaticObjectField(c, env->GetStaticFieldID(c, "TYPE", "Ljava/lang/Class;")));
-
-    jclass gByte_class = (jclass) env->NewGlobalRef(
-            env->GetStaticObjectField(c, env->GetStaticFieldID(c, "TYPE", "Ljava/lang/Class;")));
-
-    jbyteArray arrayObj = (jbyteArray) env->CallObjectMethod(gVMRuntime,
-                                       gVMRuntime_newNonMovableArray,
-                                       gByte_class, 10);
-
-
-
-    int length = env->GetArrayLength(arrayObj);
-    LOGE("length:%d", length);
-
 }
 
 
