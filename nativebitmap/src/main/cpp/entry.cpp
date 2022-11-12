@@ -59,7 +59,9 @@ jbyteArray newNonMovableArray_proxy(JNIEnv *env, jobject obj, jclass javaElement
                                                                       1);
     jlong fakeAddr = env->CallLongMethod(gVMRuntime, gVMRuntime_addressOf, fakeArray);
     *(void **) (fakeAddr - sizeof(int32_t)) = (void *) length;
-    *(void**) fakeAddr = (void*)10;
+    *(void**) fakeAddr = (void*)0x12;
+    *(void**) (fakeAddr+1) = (void*)0x34;
+    *(void**) (fakeAddr+2) = (void*)0x56;
 
     if (length != env->GetArrayLength(fakeArray)) {
         LOGE("length和fakearray size不一样！hook失败");
@@ -74,7 +76,8 @@ typedef jbyte* (*addressOf_typedef)(JNIEnv* env, jobject, jobject javaArray);
 
 static jbyte* addressOf_proxy(JNIEnv* env, jobject j, jbyteArray javaArray) {
     jbyte * p = env->GetByteArrayElements(javaArray, 0);
-    bool isNativeBitmap = *p == 10;
+    bool isNativeBitmap = (*p == 0x12)&&(*(p+1)==0x34)&&(*(p+2)==0x56);
+    LOGE("*p:%d",*p);
     LOGE("is nativeBitmap:%d", isNativeBitmap);
     LOGE("addressOf_proxy");
     if (isNativeBitmap) {
