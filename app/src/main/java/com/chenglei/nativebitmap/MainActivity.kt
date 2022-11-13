@@ -3,7 +3,9 @@ package com.chenglei.nativebitmap
 import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.drawable.BitmapDrawable
 import android.os.Bundle
+import android.util.Log
 import android.widget.Button
 import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
@@ -27,7 +29,9 @@ class MainActivity : AppCompatActivity() {
 
         val bitmaps = mutableListOf<Bitmap>()
 
-        for (i in 0..50) {
+        val count=
+            5
+        for (i in 1..count) {
             val bitmap = BitmapFactory.decodeResource(resources, R.drawable.img_demo)
             val img = ImageView(this)
             imgContainer.addView(
@@ -36,15 +40,25 @@ class MainActivity : AppCompatActivity() {
                     LinearLayoutCompat.LayoutParams.WRAP_CONTENT
                 )
             )
-            img.setImageBitmap(bitmap)
+            bitmaps.add(bitmap)
+//            img.setImageBitmap(bitmap)
+            Log.e("chenglei","这是来自Java层的日志，size:${bitmap.byteCount}, row:${bitmap.rowBytes}")
         }
+
+//        val bitmap = BitmapFactory.decodeResource(resources, R.drawable.img_demo)
 //        Log.e("chenglei","这是来自Java层的日志，size:${bitmap.byteCount}, row:${bitmap.rowBytes}")
 
         btnRecycle.setOnClickListener {
+            imgContainer.forEach {
+                (it as? ImageView)?.apply {
+                    setImageBitmap(null)
+                }
+            }
             imgContainer.removeAllViews()
             bitmaps.forEach {
                 it.recycle()
             }
+
         }
     }
 }

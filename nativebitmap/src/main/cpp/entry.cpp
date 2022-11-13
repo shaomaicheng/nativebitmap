@@ -55,13 +55,12 @@ typedef jbyteArray (*newNonMovableArray_typed)(JNIEnv *env, jobject obj, jclass 
 jbyteArray newNonMovableArray_proxy(JNIEnv *env, jobject obj, jclass javaElementClass,
                                     jint length) {
     LOGE("hook newNonMovableArray 内存分配, 分配length：%d", length);
-    jbyteArray fakeArray = ((newNonMovableArray_typed) android6_orig)(env, obj, javaElementClass,
-                                                                      1);
+    jbyteArray fakeArray = ((newNonMovableArray_typed) android6_orig)(env, obj, javaElementClass,1);
     jlong fakeAddr = env->CallLongMethod(gVMRuntime, gVMRuntime_addressOf, fakeArray);
-    *(void **) (fakeAddr - sizeof(int32_t)) = (void *) length;
-    *(void**) fakeAddr = (void*)0x12;
-    *(void**) (fakeAddr+1) = (void*)0x34;
-    *(void**) (fakeAddr+2) = (void*)0x56;
+    *(void**) (fakeAddr - sizeof(int32_t)) = (void *) length;
+    *(int32_t*)fakeAddr = 0x12345678;
+    jobject globalRef = env->NewGlobalRef(fakeArray);
+    *(jobject*)(fakeAddr + sizeof(int32_t)) = globalRef;
 
     if (length != env->GetArrayLength(fakeArray)) {
         LOGE("length和fakearray size不一样！hook失败");
@@ -76,14 +75,15 @@ typedef jbyte* (*addressOf_typedef)(JNIEnv* env, jobject, jobject javaArray);
 
 static jbyte* addressOf_proxy(JNIEnv* env, jobject j, jbyteArray javaArray) {
     jbyte * p = env->GetByteArrayElements(javaArray, 0);
-    bool isNativeBitmap = (*p == 0x12)&&(*(p+1)==0x34)&&(*(p+2)==0x56);
-    LOGE("*p:%d",*p);
+    bool isNativeBitmap = *(int32_t*)p == 0x12345678;
+    LOGE("*p:%d",*(int32_t*)p);
     LOGE("is nativeBitmap:%d", isNativeBitmap);
     LOGE("addressOf_proxy");
     if (isNativeBitmap) {
         // 需要把原先分配在java heap的图片像素数组分配在native heap
         jsize size = env->GetArrayLength(javaArray);
-        void* bitmap = calloc(size, 1);
+        void* bitmap = malloc(size);
+        *(void**)(p+sizeof(int32_t)+sizeof(jobject)) = bitmap;
         return static_cast<jbyte *>(bitmap);
     } else {
         return ((addressOf_typedef) addressOf_orig)(env, j, javaArray);
@@ -91,6 +91,9 @@ static jbyte* addressOf_proxy(JNIEnv* env, jobject j, jbyteArray javaArray) {
 }
 
 void startHookAddressOf() {
+    if (addressOf_stub != nullptr) {
+        return;
+    }
     const char *addressFunName = "_ZN3artL19VMRuntime_addressOfEP7_JNIEnvP8_jobjectS3_";
     addressOf_stub = shadowhook_hook_sym_name(
             "libart.so", addressFunName, (void *) addressOf_proxy,
@@ -109,9 +112,54 @@ void endHookAddressOf() {
 }
 
 
+
+// hook android6 art DeleteWeakGlobalRef
+void *delete_stub = nullptr;
+void *delete_orig = nullptr;
+
+typedef void (*delete_typedef)(JNIEnv * env, jweak obj);
+
+
+void delete_proxy(JNIEnv* env, jweak obj) {
+    endHookAddressOf();
+    LOGE("释放逻辑");
+    jlong weakAddress = env->CallLongMethod(gVMRuntime, gVMRuntime_addressOf, obj);
+    LOGE("weakAddress:%lld", weakAddress);
+    if (weakAddress==0){
+        ((delete_typedef) delete_orig)(env, obj);
+        startHookAddressOf();
+        return;
+    }
+    jbyte * p = (jbyte*) weakAddress;
+    if(*(int32_t*)(p) == 0x12345678) {
+        LOGE("nativebitmap内存释放！");
+//        jobject globalRef = *(jobject*)(p+sizeof(int32_t));
+//        env->DeleteGlobalRef((jobject)globalRef);
+        void* bitmap = *(void**)(p+sizeof(int32_t)+sizeof(jobject));
+        free(bitmap);
+    }else{
+        LOGE("不是nativebitmap内存释放，忽略！");
+    }
+    ((delete_typedef) delete_orig)(env, obj);
+    startHookAddressOf();
+}
+
+void startHookDelete(){
+    const char *deleteFunName = "_ZN3art3JNI19DeleteWeakGlobalRefEP7_JNIEnvP8_jobject";
+    delete_stub = shadowhook_hook_sym_name(
+            "libart.so", deleteFunName, (void *) delete_proxy, (void**)&delete_orig
+            );
+    if (delete_stub != nullptr) {
+        LOGE("delete hook success");
+    } else {
+        LOGE("delete hook fail");
+    }
+}
+
+
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_chenglei_nativebitmap_NativeBitmapJni_hook(JNIEnv *env) {
+Java_com_chenglei_nativebitmap_NativeBitmapJni_hook(JNIEnv *env, jobject thiz) {
     initAboutEnv(env);
     if (android_get_device_api_level() >= 26) {
         const char *name = "_ZN7android6Bitmap18allocateHeapBitmapEjRK11SkImageInfoj";
@@ -126,7 +174,7 @@ Java_com_chenglei_nativebitmap_NativeBitmapJni_hook(JNIEnv *env) {
         if (allocateHeapBitmapStub != nullptr) {
             LOGE("hook成功！");
         } else {
-            LOGE("hook失败！");\
+            LOGE("hook失败！");
 
         }
     } else {
@@ -140,7 +188,7 @@ Java_com_chenglei_nativebitmap_NativeBitmapJni_hook(JNIEnv *env) {
             LOGE("android6 hook失败！");
         }
         startHookAddressOf();
-
+        startHookDelete();
     }
 }
 
