@@ -15,6 +15,10 @@
 #include "Bitmap.h"
 #include "native_bitmap.h"
 
+#include <map>
+
+map<void* ,jobject> globals;
+
 // define
 jobject gVMRuntime;
 jclass gVMRuntime_class;
@@ -54,19 +58,18 @@ typedef jbyteArray (*newNonMovableArray_typed)(JNIEnv *env, jobject obj, jclass 
 
 jbyteArray newNonMovableArray_proxy(JNIEnv *env, jobject obj, jclass javaElementClass,
                                     jint length) {
-    LOGE("hook newNonMovableArray 内存分配, 分配length：%d", length);
+//    LOGE("hook newNonMovableArray 内存分配, 分配length：%d", length);
     jbyteArray fakeArray = ((newNonMovableArray_typed) android6_orig)(env, obj, javaElementClass,1);
     jlong fakeAddr = env->CallLongMethod(gVMRuntime, gVMRuntime_addressOf, fakeArray);
+//    LOGE("分配的fakeAddr地址：%lld", fakeAddr);
     *(void**) (fakeAddr - sizeof(int32_t)) = (void *) length;
     *(int32_t*)fakeAddr = 0x12345678;
     jobject globalRef = env->NewGlobalRef(fakeArray);
-    *(jobject*)(fakeAddr + sizeof(int32_t)) = globalRef;
+    globals[(void*)fakeAddr]=globalRef;
 
     if (length != env->GetArrayLength(fakeArray)) {
-        LOGE("length和fakearray size不一样！hook失败");
         return ((newNonMovableArray_typed) android6_orig)(env, obj, javaElementClass, length);
     } else {
-        LOGE("length和fakearray size一样！hook成功");
         return fakeArray;
     }
 }
@@ -74,16 +77,14 @@ jbyteArray newNonMovableArray_proxy(JNIEnv *env, jobject obj, jclass javaElement
 typedef jbyte* (*addressOf_typedef)(JNIEnv* env, jobject, jobject javaArray);
 
 static jbyte* addressOf_proxy(JNIEnv* env, jobject j, jbyteArray javaArray) {
-    jbyte * p = env->GetByteArrayElements(javaArray, 0);
+    jbyte *p = ((addressOf_typedef) addressOf_orig)(env, j, javaArray);
     bool isNativeBitmap = *(int32_t*)p == 0x12345678;
-    LOGE("*p:%d",*(int32_t*)p);
-    LOGE("is nativeBitmap:%d", isNativeBitmap);
-    LOGE("addressOf_proxy");
     if (isNativeBitmap) {
         // 需要把原先分配在java heap的图片像素数组分配在native heap
         jsize size = env->GetArrayLength(javaArray);
-        void* bitmap = malloc(size);
-        *(void**)(p+sizeof(int32_t)+sizeof(jobject)) = bitmap;
+        void* bitmap = calloc(size, 1);
+//        LOGE("分配的bitmap地址:%p，此时p指针地址为:%p",bitmap, p);
+        *(void**)(p+4) = bitmap;
         return static_cast<jbyte *>(bitmap);
     } else {
         return ((addressOf_typedef) addressOf_orig)(env, j, javaArray);
@@ -122,9 +123,8 @@ typedef void (*delete_typedef)(JNIEnv * env, jweak obj);
 
 void delete_proxy(JNIEnv* env, jweak obj) {
     endHookAddressOf();
-    LOGE("释放逻辑");
     jlong weakAddress = env->CallLongMethod(gVMRuntime, gVMRuntime_addressOf, obj);
-    LOGE("weakAddress:%lld", weakAddress);
+//    LOGE("weakAddress:%lld", weakAddress);
     if (weakAddress==0){
         ((delete_typedef) delete_orig)(env, obj);
         startHookAddressOf();
@@ -132,10 +132,9 @@ void delete_proxy(JNIEnv* env, jweak obj) {
     }
     jbyte * p = (jbyte*) weakAddress;
     if(*(int32_t*)(p) == 0x12345678) {
-        LOGE("nativebitmap内存释放！");
-//        jobject globalRef = *(jobject*)(p+sizeof(int32_t));
-//        env->DeleteGlobalRef((jobject)globalRef);
-        void* bitmap = *(void**)(p+sizeof(int32_t)+sizeof(jobject));
+        void* bitmap = *(void**)(p+4);
+        jobject globalRef = globals[p];
+        env->DeleteGlobalRef(globalRef);
         free(bitmap);
     }else{
         LOGE("不是nativebitmap内存释放，忽略！");

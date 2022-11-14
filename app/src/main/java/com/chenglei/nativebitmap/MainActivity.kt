@@ -31,6 +31,7 @@ class MainActivity : AppCompatActivity() {
 
         val count=
             5
+//            3
         for (i in 1..count) {
             val bitmap = BitmapFactory.decodeResource(resources, R.drawable.img_demo)
             val img = ImageView(this)
@@ -41,7 +42,7 @@ class MainActivity : AppCompatActivity() {
                 )
             )
             bitmaps.add(bitmap)
-//            img.setImageBitmap(bitmap)
+            img.setImageBitmap(bitmap)
             Log.e("chenglei","这是来自Java层的日志，size:${bitmap.byteCount}, row:${bitmap.rowBytes}")
         }
 
